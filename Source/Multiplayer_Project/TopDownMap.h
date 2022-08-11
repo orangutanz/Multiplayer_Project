@@ -4,16 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "BoxRoom.generated.h"
+#include "TopDownMap.generated.h"
 
 UCLASS()
-class MULTIPLAYER_PROJECT_API ABoxRoom : public AActor
+class MULTIPLAYER_PROJECT_API ATopDownMap : public AActor
 {
 	GENERATED_BODY()
-	
+
 public:	
 	// Sets default values for this actor's properties
-	ABoxRoom();
+	ATopDownMap();
 
 	virtual void OnConstruction(const FTransform& transform) override;
 
@@ -35,6 +35,5 @@ public:
 private:
 	uint32 BuiltGridSize;
 	uint32 BuiltRoomSize;
-
 
 };
