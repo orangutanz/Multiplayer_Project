@@ -9,6 +9,7 @@ public class Multiplayer_ProjectEditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
-		ExtraModuleNames.Add("Multiplayer_Project");
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+        ExtraModuleNames.Add("Multiplayer_Project");
 	}
 }

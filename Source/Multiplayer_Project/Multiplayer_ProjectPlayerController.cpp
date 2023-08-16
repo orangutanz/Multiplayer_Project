@@ -7,11 +7,42 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Multiplayer_ProjectCharacter.h"
 #include "Engine/World.h"
+#include "Engine/GameEngine.h"
 
 AMultiplayer_ProjectPlayerController::AMultiplayer_ProjectPlayerController()
 {
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Default;
+
+	if (HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerController::I have Authority!"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerController::I am just a client!"));
+	}
+}
+
+void AMultiplayer_ProjectPlayerController::UpdateRoomList()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	for (TPlayerControllerIterator<AMultiplayer_ProjectPlayerController>::ServerAll It(GetWorld()); It; ++It)
+	{
+		// PC is a PlayerController. It may local or remotely controlled.
+		AMultiplayer_ProjectPlayerController* PC = *It;
+		if (auto player = Cast<AMultiplayer_ProjectCharacter>(PC->GetCharacter()))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("PlayerController::I have got a character!"));
+
+		}
+		// This can only be done on the server! 
+		// Only the server has player controllers for everyone!
+		check(GetWorld()->GetNetMode() != NM_Client);
+	}
 }
 
 void AMultiplayer_ProjectPlayerController::PlayerTick(float DeltaTime)

@@ -18,6 +18,10 @@ class AMultiplayer_ProjectPlayerController : public APlayerController
 public:
 	AMultiplayer_ProjectPlayerController();
 
+	/** Call RoomList Update*/
+	UFUNCTION(BlueprintCallable)
+	void UpdateRoomList();
+
 	/** Time Threshold to know if it was a short press */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	float ShortPressThreshold;

@@ -43,9 +43,30 @@ AMultiplayer_ProjectCharacter::AMultiplayer_ProjectCharacter()
 	// Activate ticking in order to update the cursor every frame.
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
+
+	// Networking
+	bReplicates = true;
 }
 
 void AMultiplayer_ProjectCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 }
+
+/*
+void AMultiplayer_ProjectCharacter::OnRep_HideCharacter()
+{
+	// replication logic here
+	// set mesh to be invisible
+	// set entire actor to COND_Custom (only replicate to the custom condition which is the same room)
+	if (!Owner)
+	{
+		return;
+	}
+	// turn off this replication
+	bReplicates = false;
+	// turn off this mesh
+	GetMesh()->SetVisibility(false);
+	
+}
+*/
