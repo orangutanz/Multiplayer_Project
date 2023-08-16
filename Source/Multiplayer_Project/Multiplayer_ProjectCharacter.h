@@ -23,13 +23,18 @@ public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 
-	//UFUNCTION()
-	//void OnRep_HideCharacter();
+	UFUNCTION()
+	void OnRep_HideCharacter();
 
 protected:
-
 	// Replication Property
 	//virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const override;
+
+
+public:
+	UPROPERTY(VisibleAnywhere)
+	int roomNumber;	
+
 
 private:
 	/** Top down camera */
@@ -40,8 +45,10 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
 
-	//UPROPERTY(ReplicatedUsing = OnRep_HideCharacter)
-	//int roomNumber;
+	UPROPERTY(VisibleAnywhere)
+	class USkeletalMeshComponent* MyMesh;
 
+	UPROPERTY(VisibleAnywhere)
+	class UCharacterMovementComponent* MyMovement;
 };
 

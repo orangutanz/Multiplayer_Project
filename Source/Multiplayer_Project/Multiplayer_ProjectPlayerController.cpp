@@ -30,6 +30,9 @@ void AMultiplayer_ProjectPlayerController::UpdateRoomList()
 	{
 		return;
 	}
+	// server should categorize players into differnt group to save CPU
+	// this is where Replication Graph is recommended
+	TArray<AMultiplayer_ProjectCharacter*> PlayerList;
 	for (TPlayerControllerIterator<AMultiplayer_ProjectPlayerController>::ServerAll It(GetWorld()); It; ++It)
 	{
 		// PC is a PlayerController. It may local or remotely controlled.
@@ -37,13 +40,17 @@ void AMultiplayer_ProjectPlayerController::UpdateRoomList()
 		if (auto player = Cast<AMultiplayer_ProjectCharacter>(PC->GetCharacter()))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("PlayerController::I have got a character!"));
-
+			PlayerList.Add(player);
+			bool isInList = false;
 		}
 		// This can only be done on the server! 
 		// Only the server has player controllers for everyone!
 		check(GetWorld()->GetNetMode() != NM_Client);
 	}
+	// now that server has the full list of players
+	// do the seperation
 }
+
 
 void AMultiplayer_ProjectPlayerController::PlayerTick(float DeltaTime)
 {

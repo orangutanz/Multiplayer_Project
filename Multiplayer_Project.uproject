@@ -32,6 +32,10 @@
 		{
 			"Name": "OnlineServicesEOS",
 			"Enabled": true
+		},
+		{
+			"Name": "ReplicationGraph",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

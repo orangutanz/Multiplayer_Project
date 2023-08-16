@@ -22,10 +22,11 @@ AMultiplayer_ProjectCharacter::AMultiplayer_ProjectCharacter()
 	bUseControllerRotationRoll = false;
 
 	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Rotate character to moving direction
-	GetCharacterMovement()->RotationRate = FRotator(0.f, 640.f, 0.f);
-	GetCharacterMovement()->bConstrainToPlane = true;
-	GetCharacterMovement()->bSnapToPlaneAtStart = true;
+	MyMovement = GetCharacterMovement();
+	MyMovement->bOrientRotationToMovement = true; // Rotate character to moving direction
+	MyMovement->RotationRate = FRotator(0.f, 640.f, 0.f);
+	MyMovement->bConstrainToPlane = true;
+	MyMovement->bSnapToPlaneAtStart = true;
 
 	// Create a camera boom...
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -44,6 +45,9 @@ AMultiplayer_ProjectCharacter::AMultiplayer_ProjectCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
+	// Mesh
+	MyMesh = GetMesh();
+
 	// Networking
 	bReplicates = true;
 }
@@ -53,20 +57,21 @@ void AMultiplayer_ProjectCharacter::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
 }
 
-/*
 void AMultiplayer_ProjectCharacter::OnRep_HideCharacter()
 {
 	// replication logic here
 	// set mesh to be invisible
 	// set entire actor to COND_Custom (only replicate to the custom condition which is the same room)
-	if (!Owner)
-	{
-		return;
-	}
-	// turn off this replication
-	bReplicates = false;
-	// turn off this mesh
-	GetMesh()->SetVisibility(false);
-	
+
+	UE_LOG(LogTemp, Warning, TEXT("Multiplayer_ProjectCharacter::OnRep_HideCharacter()"));
+	// MyMesh->SetVisibility(false);
 }
-*/
+
+//void AMultiplayer_ProjectCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+//{
+//	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+//
+//	DOREPLIFETIME_CONDITION_NOTIFY(AMultiplayer_ProjectCharacter, roomNumber, COND_Custom, REPNOTIFY_Always);
+//	UE_LOG(LogTemp, Warning, TEXT("Multiplayer_ProjectCharacter::GetLifetimeReplicatedProps()"));
+//}
+
