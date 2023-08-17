@@ -5,7 +5,14 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
+#include "Equipment.h"
 #include "Multiplayer_ProjectCharacter.generated.h"
+
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnNewEquipment, class AMultiplayer_ProjectCharacter*,
+	class AEquipment* /* New Equipment */, class AEquipment* /* Old Equipment */)
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnterLiveroom, class AMultiplayer_ProjectCharacter*, int)
+
 
 UCLASS(Blueprintable)
 class AMultiplayer_ProjectCharacter : public ACharacter
@@ -15,38 +22,24 @@ class AMultiplayer_ProjectCharacter : public ACharacter
 public:
 	AMultiplayer_ProjectCharacter();
 
-	// Called every frame.
-	virtual void Tick(float DeltaSeconds) override;
+	static FOnNewEquipment OnNewEquipment;
+	static FOnEnterLiveroom OnEnterLiveroom;
 
-	/** Returns TopDownCameraComponent subobject **/
-	FORCEINLINE class UCameraComponent* GetTopDownCameraComponent() const { return TopDownCameraComponent; }
-	/** Returns CameraBoom subobject **/
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	UFUNCTION(BlueprintCallable)
+	void EnterLiveroomBroadcast(int roomNo);
 
-	UFUNCTION()
-	void OnRep_HideCharacter();
+	UFUNCTION(BlueprintCallable)
+	void NewEquipmentBroadcast(AEquipment* NewEquipment);
 
 protected:
-	// Replication Property
-	//virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const override;
-
 
 public:
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int roomNumber;	
 
 
 private:
-	/** Top down camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* TopDownCameraComponent;
-
-	/** Camera boom positioning the camera above the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class USpringArmComponent* CameraBoom;
-
-	UPROPERTY(VisibleAnywhere)
-	class USkeletalMeshComponent* MyMesh;
+	AEquipment* mEquipment = nullptr;
 
 	UPROPERTY(VisibleAnywhere)
 	class UCharacterMovementComponent* MyMovement;

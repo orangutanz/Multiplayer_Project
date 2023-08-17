@@ -23,6 +23,8 @@ enum class EClassRepPolicy : uint8
 
 class UReplicationGraphNode_ActorList;
 class UReplicationGraphNode_GridSpatialization2D;
+class UReplicationGraphNode_AlwaysRelevant_ForConnection;
+class AGameplayDebuggerCategoryReplicator;
 
 /**
  * 
@@ -31,9 +33,14 @@ UCLASS(Transient, config=Engine)
 class MULTIPLAYER_PROJECT_API UUTO8ReplicationGraph : public UReplicationGraph
 {
 	GENERATED_BODY()
+public:
+	/**  Maps the actors that needs to be always relevant across streaming levels */
+	TMap<FName, FActorRepListRefView> AlwaysRelevantStreamingLevelActors;
 
 private:
 	// ~ begin UReplicationGraph implementation
+	virtual void ResetGameWorldState() override;
+	virtual void InitConnectionGraphNodes(UNetReplicationGraphConnection* ConnectionManager) override;
 	virtual void InitGlobalActorClassSettings() override;
 	virtual void InitGlobalGraphNodes() override;
 	virtual void RouteAddNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo) override;
@@ -69,7 +76,20 @@ private:
 	UPROPERTY()
 	UReplicationGraphNode_ActorList* AlwaysRelevantNode;
 
+
 protected:
+	/** Gets the connection always relevant node from a player controller */
+	UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection* GetAlwaysRelevantNode(APlayerController* PlayerController);
+
+#if WITH_GAMEPLAY_DEBUGGER
+	void OnGameplayDebuggerOwnerChange(AGameplayDebuggerCategoryReplicator* Debugger, APlayerController* OldOwner);
+#endif
+
+	void OnCharacterNewEquipment(class AMultiplayer_ProjectCharacter* Pawn,
+		class AEquipment* NewEquipment, class AEquipment* OldEquipment);
+
+	void OnCharacterEnterLiveroom(class AMultiplayer_ProjectCharacter* Pawn,
+		int RoomNumber);
 
 	FORCEINLINE bool IsSpatialized(EClassRepPolicy Mapping) 
 	{ 
@@ -82,18 +102,37 @@ protected:
 	/** Mapes a class to a mapping policy */
 	TClassMap<EClassRepPolicy> ClassRepPolicies;
 
-	float GridCellSize = 10000.f;			// the size of one grid
+	float GridCellSize = 50000.f;			// the size of one grid
 	float SpatialBiasX = -150000.f;			// Min X for replication
 	float SpatialBiasY = -200000.f;			// Min Y for replication
 	bool bDisableSpatialRebuilding = true;
 
 };
 
+// custon grid node
 UCLASS()
-class UTO8ReplicationGraphNode_AlwaysRelavent_ForConnection : public UReplicationGraphNode_AlwaysRelevant_ForConnection
+class UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection : public UReplicationGraphNode_AlwaysRelevant_ForConnection
 {
 public:
 	GENERATED_BODY()
 
+public:
 
+	// ~ begin UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection implementation
+	virtual void GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params) override;
+	// ~ end
+
+	void OnClientLevelVisitbilityAdd(FName LevelName, UWorld* LevelWorld);
+	void OnClientLevelVisitbilityRemove(FName LevelName);
+
+	void ResetGameWorldState();
+
+#if WITH_GAMEPLAY_DEBUGGER
+	AGameplayDebuggerCategoryReplicator* GameplayDebugger = nullptr;
+#endif
+
+protected:
+
+	/** Stores levelstreaming acotrs */
+	TArray<FName, TInlineAllocator<64>> AlwaysRelevantStreamingLevels;
 };
