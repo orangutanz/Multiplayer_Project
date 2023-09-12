@@ -11,8 +11,8 @@
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnNewEquipment, class AMultiplayer_ProjectCharacter*,
 	class AEquipment* /* New Equipment */, class AEquipment* /* Old Equipment */)
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnterLiveroom, class AMultiplayer_ProjectCharacter*, int)
-
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnterInstance, class AMultiplayer_ProjectCharacter*, int32)
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLeaveInstance, class AMultiplayer_ProjectCharacter*, int32)
 
 UCLASS(Blueprintable)
 class AMultiplayer_ProjectCharacter : public ACharacter
@@ -23,10 +23,18 @@ public:
 	AMultiplayer_ProjectCharacter();
 
 	static FOnNewEquipment OnNewEquipment;
-	static FOnEnterLiveroom OnEnterLiveroom;
+
+	// Call ReplicationGraph to Update Node
+	static FOnEnterInstance OnEnterInstance; 
+	static FOnLeaveInstance OnLeaveInstance;
+
+
+	// This code should call the server
+	UFUNCTION(BlueprintCallable)
+	void EnterInstance(AMultiplayer_ProjectCharacter* actor, int32 instanceNumber);
 
 	UFUNCTION(BlueprintCallable)
-	void EnterLiveroomBroadcast(int roomNo);
+	void LeaveInstance(AMultiplayer_ProjectCharacter* actor, int32 instanceNumber);
 
 	UFUNCTION(BlueprintCallable)
 	void NewEquipmentBroadcast(AEquipment* NewEquipment);
@@ -34,8 +42,6 @@ public:
 protected:
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int roomNumber;	
 
 
 private:

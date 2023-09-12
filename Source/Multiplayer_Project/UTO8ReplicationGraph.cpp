@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "UTO8ReplicationGraph.h"
+#include "UTO8ReplicationGraphNodes.h"
 #include "Engine/LevelScriptActor.h"
 
 #if WITH_GAMEPLAY_DEBUGGER
@@ -10,36 +11,6 @@
 #include "Multiplayer_ProjectCharacter.h"
 #include "Equipment.h"
 #include "Projectile.h"
-
-void UUTO8ReplicationGraph::ResetGameWorldState()
-{
-	Super::ResetGameWorldState();
-	AlwaysRelevantStreamingLevelActors.Empty();
-
-	for (auto& ConnectionList : { Connections,PendingConnections })
-	{
-		for (UNetReplicationGraphConnection* Connection : ConnectionList )
-		{
-			for (UReplicationGraphNode* ConnectionNode : Connection->GetConnectionGraphNodes())
-			{
-				UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection* Node = Cast<UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection>(ConnectionNode);
-				if (Node != nullptr)
-				{
-					Node->ResetGameWorldState();
-				}
-			}
-		}
-	}
-}
-
-void UUTO8ReplicationGraph::InitConnectionGraphNodes(UNetReplicationGraphConnection* ConnectionManager)
-{
-	UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection* Node = CreateNewNode<UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection>();
-	ConnectionManager->OnClientVisibleLevelNameAdd.AddUObject(Node, &UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::OnClientLevelVisitbilityAdd);
-	ConnectionManager->OnClientVisibleLevelNameRemove.AddUObject(Node,
-		&UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::OnClientLevelVisitbilityRemove);
-	AddConnectionGraphNode(Node, ConnectionManager);
-}
 
 void UUTO8ReplicationGraph::InitGlobalActorClassSettings()
 {
@@ -73,7 +44,6 @@ void UUTO8ReplicationGraph::InitGlobalActorClassSettings()
 		{
 			continue;
 		}
-
 		// Do not add SKEL and REINST classes
 		FString ClassName = Class->GetName();
 		if (ClassName.StartsWith("SKEL_") || ClassName.StartsWith("REINST_"))
@@ -89,12 +59,14 @@ void UUTO8ReplicationGraph::InitGlobalActorClassSettings()
 			continue;
 		}
 
+		// helper lamda
 		auto ShouldSpatialize = [](const AActor* Actor)
 		{
 			return Actor->GetIsReplicated() && 
 				(!(Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner || Actor->bNetUseOwnerRelevancy));
 		};
 
+		// check is replication policy different from parent
 		UClass* SuperClass = Class->GetSuperClass();
 		if (AActor* SuperCDO = Cast<AActor>(SuperClass->GetDefaultObject()))
 		{
@@ -103,7 +75,7 @@ void UUTO8ReplicationGraph::InitGlobalActorClassSettings()
 				&& (SuperCDO->bOnlyRelevantToOwner == ActorCDO->bOnlyRelevantToOwner)
 				&& (SuperCDO->bNetUseOwnerRelevancy == ActorCDO->bNetUseOwnerRelevancy))
 			{
-				continue;
+				continue; // using same repPolicy skip to next one
 			}
 
 			if (ShouldSpatialize(ActorCDO) == false && ShouldSpatialize(SuperCDO) == true)
@@ -135,7 +107,7 @@ void UUTO8ReplicationGraph::InitGlobalActorClassSettings()
 	};
 
 	FClassReplicationInfo PawnClassInfo;
-	PawnClassInfo.SetCullDistanceSquared(300000.f * 300000.f);
+	PawnClassInfo.SetCullDistanceSquared(12000.f * 12000.f);
 	SetClassInfo(APawn::StaticClass(), PawnClassInfo);
 
 	for (UClass* ReplicatedClass : ReplicatedClasses)
@@ -155,14 +127,31 @@ void UUTO8ReplicationGraph::InitGlobalActorClassSettings()
 	// Bind evnets here
 	AMultiplayer_ProjectCharacter::OnNewEquipment.AddUObject(this, &UUTO8ReplicationGraph::OnCharacterNewEquipment);
 
+	AMultiplayer_ProjectCharacter::OnEnterInstance.AddUObject(this, &UUTO8ReplicationGraph::OnPlayerAddToInstance);
+	AMultiplayer_ProjectCharacter::OnLeaveInstance.AddUObject(this, &UUTO8ReplicationGraph::OnPlayerRemoveFromInstance);
+
 #if WITH_GAMEPLAY_DEBUGGER
 	AGameplayDebuggerCategoryReplicator::NotifyDebuggerOwnerChange.AddUObject(this, &UUTO8ReplicationGraph::OnGameplayDebuggerOwnerChange);
 	
 #endif
 }	
 
+void UUTO8ReplicationGraph::InitClassReplicationInfo(FClassReplicationInfo& info, UClass* InClass, bool bSpatilize, float ServerMaxTickRate)
+{
+	if (AActor* CDO = Cast<AActor>(InClass->GetDefaultObject()))
+	{
+		if (bSpatilize == true)
+		{
+			info.SetCullDistanceSquared(CDO->NetCullDistanceSquared);
+		}
+
+		info.ReplicationPeriodFrame = FMath::Max<uint32>((uint32)FMath::RoundToFloat(ServerMaxTickRate / CDO->NetUpdateFrequency), 1);
+	}
+}
+
 void UUTO8ReplicationGraph::InitGlobalGraphNodes()
 {
+	Super::InitGlobalGraphNodes();
 
 	// -----------------------------
 	// Create grid node
@@ -181,6 +170,39 @@ void UUTO8ReplicationGraph::InitGlobalGraphNodes()
 	// Create always relevant node
 	AlwaysRelevantNode = CreateNewNode<UReplicationGraphNode_ActorList>();
 	AddGlobalGraphNode(AlwaysRelevantNode);
+}
+
+void UUTO8ReplicationGraph::InitConnectionGraphNodes(UNetReplicationGraphConnection* ConnectionManager)
+{
+	Super::InitConnectionGraphNodes(ConnectionManager);
+
+	// Setup node for actors that are always replicated, for the specified connection. support level streaming
+	UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection* Node = CreateNewNode<UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection>();
+	ConnectionManager->OnClientVisibleLevelNameAdd.AddUObject(Node, &UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::OnClientLevelVisitbilityAdd);
+	ConnectionManager->OnClientVisibleLevelNameRemove.AddUObject(Node,
+		&UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::OnClientLevelVisitbilityRemove);
+	AddConnectionGraphNode(Node, ConnectionManager);
+}
+
+void UUTO8ReplicationGraph::ResetGameWorldState()
+{
+	Super::ResetGameWorldState();
+	AlwaysRelevantStreamingLevelActors.Empty();
+
+	for (auto& ConnectionList : { Connections,PendingConnections })
+	{
+		for (UNetReplicationGraphConnection* Connection : ConnectionList)
+		{
+			for (UReplicationGraphNode* ConnectionNode : Connection->GetConnectionGraphNodes())
+			{
+				UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection* Node = Cast<UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection>(ConnectionNode);
+				if (Node != nullptr)
+				{
+					Node->ResetGameWorldState();
+				}
+			}
+		}
+	}
 }
 
 void UUTO8ReplicationGraph::RouteAddNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo)
@@ -249,21 +271,8 @@ void UUTO8ReplicationGraph::RouteRemoveNetworkActorToNodes(const FNewReplicatedA
 	default:
 		break;
 	}
-
 }
 
-void UUTO8ReplicationGraph::InitClassReplicationInfo(FClassReplicationInfo& info, UClass* InClass, bool bSpatilize, float ServerMaxTickRate)
-{
-	if (AActor* CDO = Cast<AActor>(InClass->GetDefaultObject()))
-	{
-		if (bSpatilize == true)
-		{
-			info.SetCullDistanceSquared(CDO->NetCullDistanceSquared);
-		}
-
-		info.ReplicationPeriodFrame = FMath::Max<uint32>((uint32)FMath::RoundToFloat(ServerMaxTickRate / CDO->NetUpdateFrequency), 1);
-	}
-}
 
 UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection* UUTO8ReplicationGraph::GetAlwaysRelevantNode(APlayerController* PlayerController)
 {
@@ -321,86 +330,65 @@ void UUTO8ReplicationGraph::OnCharacterNewEquipment(AMultiplayer_ProjectCharacte
 	}
 }
 
-void UUTO8ReplicationGraph::OnCharacterEnterLiveroom(AMultiplayer_ProjectCharacter* Pawn, int RoomNumber)
+void UUTO8ReplicationGraph::OnPlayerAddToInstance(AMultiplayer_ProjectCharacter* Pawn, int32 InstanceNumber)
 {
 	if (!Pawn || Pawn->GetWorld() != GetWorld())
 	{
 		return;
+	}
+	auto actorInfo = FNewReplicatedActorInfo(Pawn);
+	auto netConnection = Pawn->GetNetConnection();
+	UUTO8ReplicationGraphNode_Instance* nodeRef = InstanceNodes.FindRef(InstanceNumber);
+	if (!nodeRef)
+	{
+		// instance Node doesn't exist, make a new one
+		nodeRef = CreateNewNode<UUTO8ReplicationGraphNode_Instance>();
+		nodeRef->SetInstanceNumber(InstanceNumber);
+		nodeRef->AddPlayer(actorInfo, InstanceNumber);
+		InstanceNodes.Add(InstanceNumber, nodeRef);
+	}
+	else
+	{
+		// add to existing Node
+		nodeRef->AddPlayer(actorInfo, InstanceNumber);
+	}	
+	// remove target from GridNode
+	GridNode->RemoveActor_Dynamic(actorInfo);
+	RemoveConnectionGraphNode(GridNode, netConnection);
+	AddConnectionGraphNode(nodeRef, netConnection);
+}
+
+void UUTO8ReplicationGraph::OnPlayerRemoveFromInstance(AMultiplayer_ProjectCharacter* Pawn, int32 InstanceNumber)
+{
+	// Get world is wrong for some reason
+	if (!Pawn /* || Pawn->GetWorld() != GetWorld()*/)
+	{
+		return;
+	}
+	auto nodeRef = InstanceNodes.FindRef(InstanceNumber);
+	if (nodeRef)
+	{
+		// remove from Node
+		auto actorInfo = FNewReplicatedActorInfo(Pawn);
+		auto netConnection = Pawn->GetNetConnection();
+		int32 NodePlayerSize = nodeRef->RemovePlayer(actorInfo);
+		if (NodePlayerSize == 0)
+		{
+			InstanceNodes.Remove(InstanceNumber);
+		}
+		// dummy variables, only for GridNode->AddActor_Dynamic. The actual function only need ActorInfo
+		auto dummyClassInfo = FClassReplicationInfo();
+		auto dummy = FGlobalActorReplicationInfo(dummyClassInfo);
+		// add to GridNode
+		GridNode->AddActor_Dynamic(actorInfo, dummy);
+		RemoveConnectionGraphNode(nodeRef, netConnection);
+		AddConnectionGraphNode(GridNode, netConnection);
+		//Clean up node. need more implementation
+		// delete nodeRef;
 	}
 }
 
 EClassRepPolicy UUTO8ReplicationGraph::GetMappingPolicy(UClass* InClass)
 {	
 	return ClassRepPolicies.Get(InClass) != NULL ? *ClassRepPolicies.Get(InClass) : EClassRepPolicy::NotRouted;
-}
-
-// ------------------------------------------------------------------------
-// UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection
-
-void UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
-{
-	Super::GatherActorListsForConnection(Params);
-
-	UUTO8ReplicationGraph* RepGraph = Cast<UUTO8ReplicationGraph>(GetOuter());
-
-	FPerConnectionActorInfoMap& ConnectionAcotrInfoMap = Params.ConnectionManager.ActorInfoMap;
-	TMap<FName, FActorRepListRefView>& AlwaysRelevantStreamingLevelActors = RepGraph->AlwaysRelevantStreamingLevelActors;
-
-	for (int32 Idx = AlwaysRelevantStreamingLevelActors.Num() - 1; Idx >= 0; --Idx)
-	{
-		FName StreamingLevel = AlwaysRelevantStreamingLevels[Idx];
-		FActorRepListRefView* ListPtr = AlwaysRelevantStreamingLevelActors.Find(StreamingLevel);
-
-		if (ListPtr == nullptr)
-		{
-			AlwaysRelevantStreamingLevels.RemoveAtSwap(Idx, 1, false);
-			continue;
-		}
-
-		FActorRepListRefView& RepList = *ListPtr;
-		if (RepList.Num() > 0)
-		{
-			bool bAllDormant = true;
-			for (FActorRepListType Actor : RepList)
-			{
-				FConnectionReplicationActorInfo& ConnectionActorInfo = ConnectionAcotrInfoMap.FindOrAdd(Actor);
-				if (ConnectionActorInfo.bDormantOnConnection == false)
-				{
-					bAllDormant = false;
-					break;
-				}
-			}
-
-			if (bAllDormant == true)
-			{
-				AlwaysRelevantStreamingLevels.RemoveAtSwap(Idx, 1, false);
-			}
-			else
-			{
-				Params.OutGatheredReplicationLists.AddReplicationActorList(RepList);
-			}
-		}
-	}
-
-#if WITH_GAMEPLAY_DEBUGGER
-	if (GameplayDebugger)
-	{
-		ReplicationActorList.ConditionalAdd(GameplayDebugger);
-	}
-#endif
-}
-
-void UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::OnClientLevelVisitbilityAdd(FName LevelName, UWorld* LevelWorld)
-{
-	AlwaysRelevantStreamingLevels.Add(LevelName);
-}
-
-void UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::OnClientLevelVisitbilityRemove(FName LevelName)
-{
-	AlwaysRelevantStreamingLevels.Remove(LevelName);
-}
-
-void UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::ResetGameWorldState()
-{
-	AlwaysRelevantStreamingLevels.Empty();
 }
