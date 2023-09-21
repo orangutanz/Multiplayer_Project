@@ -1,5 +1,4 @@
 # Multiplayer_Project
-## This is a project for testing out Unreal Engine's multiplayer framework features.
 
 ### In this project:
 1.Start the game as a singleplayer.  
