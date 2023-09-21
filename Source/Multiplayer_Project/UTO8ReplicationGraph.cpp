@@ -125,10 +125,9 @@ void UUTO8ReplicationGraph::InitGlobalActorClassSettings()
 
 	// ----------------------------------------------
 	// Bind evnets here
-	AMultiplayer_ProjectCharacter::OnNewEquipment.AddUObject(this, &UUTO8ReplicationGraph::OnCharacterNewEquipment);
-
-	AMultiplayer_ProjectCharacter::OnEnterInstance.AddUObject(this, &UUTO8ReplicationGraph::OnPlayerAddToInstance);
-	AMultiplayer_ProjectCharacter::OnLeaveInstance.AddUObject(this, &UUTO8ReplicationGraph::OnPlayerRemoveFromInstance);
+	AMultiplayer_ProjectCharacter::OnChangeInstance.BindUObject(this, &UUTO8ReplicationGraph::OnPlayerChangeInstance);
+	AMultiplayer_ProjectCharacter::OnEnterInstance.BindUObject(this, &UUTO8ReplicationGraph::OnPlayerAddToInstance);
+	AMultiplayer_ProjectCharacter::OnLeaveInstance.BindUObject(this, &UUTO8ReplicationGraph::OnPlayerRemoveFromInstance);
 
 #if WITH_GAMEPLAY_DEBUGGER
 	AGameplayDebuggerCategoryReplicator::NotifyDebuggerOwnerChange.AddUObject(this, &UUTO8ReplicationGraph::OnGameplayDebuggerOwnerChange);
@@ -313,23 +312,6 @@ void UUTO8ReplicationGraph::OnGameplayDebuggerOwnerChange(AGameplayDebuggerCateg
 }
 #endif
 
-void UUTO8ReplicationGraph::OnCharacterNewEquipment(AMultiplayer_ProjectCharacter* Pawn, AEquipment* NewEquipment, AEquipment* OldEquipment)
-{
-	if (!Pawn || Pawn->GetWorld() != GetWorld())
-	{
-		return;
-	}
-
-	if (NewEquipment)
-	{
-		GlobalActorReplicationInfoMap.AddDependentActor(Pawn, NewEquipment);
-	}
-	if (OldEquipment)
-	{
-		GlobalActorReplicationInfoMap.RemoveDependentActor(Pawn, OldEquipment);
-	}
-}
-
 void UUTO8ReplicationGraph::OnPlayerAddToInstance(AMultiplayer_ProjectCharacter* Pawn, int32 InstanceNumber)
 {
 	if (!Pawn || Pawn->GetWorld() != GetWorld())
@@ -344,13 +326,13 @@ void UUTO8ReplicationGraph::OnPlayerAddToInstance(AMultiplayer_ProjectCharacter*
 		// instance Node doesn't exist, make a new one
 		nodeRef = CreateNewNode<UUTO8ReplicationGraphNode_Instance>();
 		nodeRef->SetInstanceNumber(InstanceNumber);
-		nodeRef->AddPlayer(actorInfo, InstanceNumber);
+		nodeRef->AddPlayer(actorInfo);
 		InstanceNodes.Add(InstanceNumber, nodeRef);
 	}
 	else
 	{
 		// add to existing Node
-		nodeRef->AddPlayer(actorInfo, InstanceNumber);
+		nodeRef->AddPlayer(actorInfo);
 	}	
 	// remove target from GridNode
 	GridNode->RemoveActor_Dynamic(actorInfo);
@@ -386,6 +368,44 @@ void UUTO8ReplicationGraph::OnPlayerRemoveFromInstance(AMultiplayer_ProjectChara
 		//Clean up node. need more implementation
 		// delete nodeRef;
 	}
+}
+
+void UUTO8ReplicationGraph::OnPlayerChangeInstance(AMultiplayer_ProjectCharacter* Pawn, int32 OldNumber, int32 NewNumber)
+{
+
+	if (!Pawn)
+	{
+		return;
+	}
+	UUTO8ReplicationGraphNode_Instance* oldNodeRef = InstanceNodes.FindRef(OldNumber);
+	if (!oldNodeRef)
+	{
+		return;
+	}
+	auto actorInfo = FNewReplicatedActorInfo(Pawn);
+	auto netConnection = Pawn->GetNetConnection();
+
+	UUTO8ReplicationGraphNode_Instance* newNodeRef = InstanceNodes.FindRef(NewNumber);
+	if (!newNodeRef)
+	{
+		// instance Node doesn't exist, make a new one
+		newNodeRef = CreateNewNode<UUTO8ReplicationGraphNode_Instance>();
+		newNodeRef->AddPlayer(actorInfo);
+		InstanceNodes.Add(NewNumber, newNodeRef);
+	}
+	else
+	{
+		newNodeRef->AddPlayer(actorInfo);
+	}
+
+	// reroute nodes
+	int32 NodePlayerSize = oldNodeRef->RemovePlayer(actorInfo);
+	if (NodePlayerSize == 0)
+	{
+		InstanceNodes.Remove(OldNumber);
+	}
+	RemoveConnectionGraphNode(oldNodeRef, netConnection);
+	AddConnectionGraphNode(newNodeRef, netConnection);
 }
 
 EClassRepPolicy UUTO8ReplicationGraph::GetMappingPolicy(UClass* InClass)

@@ -94,7 +94,7 @@ void UUTO8ReplicationGraphNode_Instance::GatherActorListsForConnection(const FCo
 	}
 }
 
-void UUTO8ReplicationGraphNode_Instance::AddPlayer(const FNewReplicatedActorInfo& ActorInfo, int32 InstanceNumber)
+void UUTO8ReplicationGraphNode_Instance::AddPlayer(const FNewReplicatedActorInfo& ActorInfo)
 {
 	InstancePlayerList.Add(ActorInfo.Actor);
 }
@@ -105,7 +105,7 @@ int32 UUTO8ReplicationGraphNode_Instance::RemovePlayer(const FNewReplicatedActor
 	return InstancePlayerList.Num();
 }
 
-void UUTO8ReplicationGraphNode_Instance::AddActor(const FNewReplicatedActorInfo& ActorInfo, int32 InstanceNumber)
+void UUTO8ReplicationGraphNode_Instance::AddActor(const FNewReplicatedActorInfo& ActorInfo)
 {
 	InstanceActorList.Add(ActorInfo.Actor);
 }

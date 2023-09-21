@@ -97,14 +97,14 @@ protected:
 	/*	Bind events
 	*	Call these events on the server to reroute connection into nodes
 	*/
-	void OnCharacterNewEquipment(class AMultiplayer_ProjectCharacter* Pawn,
-		class AEquipment* NewEquipment, class AEquipment* OldEquipment);
-
 	void OnPlayerAddToInstance(class AMultiplayer_ProjectCharacter* Pawn,
 		int32 InstanceNumber);
 
 	void OnPlayerRemoveFromInstance(class AMultiplayer_ProjectCharacter* Pawn,
 		int32 InstanceNumber);
+
+	void OnPlayerChangeInstance(class AMultiplayer_ProjectCharacter* Pawn,
+		int32 OldNumber, int32 NewNumber);
 
 	FORCEINLINE bool IsSpatialized(EClassRepPolicy Mapping) 
 	{ 

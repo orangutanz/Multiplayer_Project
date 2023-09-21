@@ -9,7 +9,7 @@
 
 class AGameplayDebuggerCategoryReplicator;
 
-/*	custon nodes
+/**	custon nodes
  */
 UCLASS()
 class UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection : public UReplicationGraphNode_AlwaysRelevant_ForConnection
@@ -45,9 +45,9 @@ class MULTIPLAYER_PROJECT_API UUTO8ReplicationGraphNode_Instance: public UReplic
 public:
     virtual void GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params) override;
 
-	void AddPlayer(const FNewReplicatedActorInfo& ActorInfo, int32 InstanceNumber);
+	void AddPlayer(const FNewReplicatedActorInfo& ActorInfo);
 	int32 RemovePlayer(const FNewReplicatedActorInfo& ActorInfo);
-	void AddActor(const FNewReplicatedActorInfo& ActorInfo, int32 InstanceNumber);
+	void AddActor(const FNewReplicatedActorInfo& ActorInfo);
 	int32 RemoveActor(const FNewReplicatedActorInfo& ActorInfo);
 
 	inline void SetInstanceNumber(int newInstanceNumber) { instanceNumber = newInstanceNumber; }

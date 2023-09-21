@@ -8,11 +8,9 @@
 #include "Equipment.h"
 #include "Multiplayer_ProjectCharacter.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnNewEquipment, class AMultiplayer_ProjectCharacter*,
-	class AEquipment* /* New Equipment */, class AEquipment* /* Old Equipment */)
-
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnterInstance, class AMultiplayer_ProjectCharacter*, int32)
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLeaveInstance, class AMultiplayer_ProjectCharacter*, int32)
+DECLARE_DELEGATE_TwoParams(FOnEnterInstance, class AMultiplayer_ProjectCharacter*, int32)
+DECLARE_DELEGATE_TwoParams(FOnLeaveInstance, class AMultiplayer_ProjectCharacter*, int32)
+DECLARE_DELEGATE_ThreeParams(FOnChangeInstance, class AMultiplayer_ProjectCharacter*, int32,int32)
 
 UCLASS(Blueprintable)
 class AMultiplayer_ProjectCharacter : public ACharacter
@@ -22,11 +20,11 @@ class AMultiplayer_ProjectCharacter : public ACharacter
 public:
 	AMultiplayer_ProjectCharacter();
 
-	static FOnNewEquipment OnNewEquipment;
 
 	// Call ReplicationGraph to Update Node
 	static FOnEnterInstance OnEnterInstance; 
 	static FOnLeaveInstance OnLeaveInstance;
+	static FOnChangeInstance OnChangeInstance;
 
 
 	// This code should call the server
@@ -37,9 +35,10 @@ public:
 	void LeaveInstance(AMultiplayer_ProjectCharacter* actor, int32 instanceNumber);
 
 	UFUNCTION(BlueprintCallable)
-	void NewEquipmentBroadcast(AEquipment* NewEquipment);
+	void ChangeInstance(AMultiplayer_ProjectCharacter* actor, int32 OldNumber, int32 NewNumber);
 
 protected:
+
 
 public:
 

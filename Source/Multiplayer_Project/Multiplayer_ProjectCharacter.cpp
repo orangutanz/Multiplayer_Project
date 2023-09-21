@@ -11,9 +11,9 @@
 #include "Materials/Material.h"
 #include "Engine/World.h"
 
-FOnNewEquipment AMultiplayer_ProjectCharacter::OnNewEquipment;
 FOnEnterInstance AMultiplayer_ProjectCharacter::OnEnterInstance;
 FOnLeaveInstance AMultiplayer_ProjectCharacter::OnLeaveInstance;
+FOnChangeInstance AMultiplayer_ProjectCharacter::OnChangeInstance;
 
 AMultiplayer_ProjectCharacter::AMultiplayer_ProjectCharacter()
 {
@@ -28,24 +28,17 @@ AMultiplayer_ProjectCharacter::AMultiplayer_ProjectCharacter()
 	bReplicates = true;
 }
 
-
-void AMultiplayer_ProjectCharacter::NewEquipmentBroadcast(AEquipment* NewEquipment)
-{
-	if (!NewEquipment)
-	{
-		return;
-	}
-
-	OnNewEquipment.Broadcast(this, NewEquipment, mEquipment);
-	mEquipment = NewEquipment;
-}
-
 void AMultiplayer_ProjectCharacter::EnterInstance(AMultiplayer_ProjectCharacter* actor, int32 instanceNumber)
 {
-	OnEnterInstance.Broadcast(actor, instanceNumber);
+	OnEnterInstance.Execute(actor, instanceNumber);
 }
 
 void AMultiplayer_ProjectCharacter::LeaveInstance(AMultiplayer_ProjectCharacter* actor, int32 instanceNumber)
 {
-	OnLeaveInstance.Broadcast(actor, instanceNumber);
+	OnLeaveInstance.Execute(actor, instanceNumber);
+}
+
+void AMultiplayer_ProjectCharacter::ChangeInstance(AMultiplayer_ProjectCharacter* actor, int32 OldNumber, int32 NewNumber)
+{
+	OnChangeInstance.Execute(actor, OldNumber, NewNumber);
 }
