@@ -92,7 +92,7 @@ void UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::GatherActorListsFor
 	FPerConnectionActorInfoMap& ConnectionAcotrInfoMap = Params.ConnectionManager.ActorInfoMap;
 	TMap<FName, FActorRepListRefView>& AlwaysRelevantStreamingLevelActors = RepGraph->AlwaysRelevantStreamingLevelActors;
 
-	for (int32 Idx = AlwaysRelevantStreamingLevelActors.Num() - 1; Idx >= 0; --Idx)
+	for (int32 Idx = AlwaysRelevantStreamingLevels.Num() - 1; Idx >= 0; --Idx)
 	{
 		FName StreamingLevel = AlwaysRelevantStreamingLevels[Idx];
 		FActorRepListRefView* ListPtr = AlwaysRelevantStreamingLevelActors.Find(StreamingLevel);
