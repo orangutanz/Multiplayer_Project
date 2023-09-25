@@ -81,9 +81,14 @@ void InstanceSpaceMaker::ReturnGrid(GridInfo Grid)
 void UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {
 	Super::GatherActorListsForConnection(Params);
+	return;
 
 	UUTO8ReplicationGraph* RepGraph = Cast<UUTO8ReplicationGraph>(GetOuter());
 
+	if (RepGraph->AlwaysRelevantStreamingLevelActors.IsEmpty())
+	{
+		return;
+	}
 	FPerConnectionActorInfoMap& ConnectionAcotrInfoMap = Params.ConnectionManager.ActorInfoMap;
 	TMap<FName, FActorRepListRefView>& AlwaysRelevantStreamingLevelActors = RepGraph->AlwaysRelevantStreamingLevelActors;
 

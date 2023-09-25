@@ -290,20 +290,6 @@ UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection* UUTO8ReplicationGraph::G
 	{
 		return nullptr;
 	}
-	if (UNetConnection* NetConnection = PlayerController->NetConnection)
-	{
-		if (UNetReplicationGraphConnection* GraphConnection = FindOrAddConnectionManager(NetConnection))
-		{
-			for (UReplicationGraphNode* ConnectionNode : GraphConnection->GetConnectionGraphNodes())
-			{
-				auto Node = Cast<UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection>(ConnectionNode);
-				if (Node)
-				{
-					return Node;
-				}
-			}
-		}
-	}
 
 	return nullptr;
 }

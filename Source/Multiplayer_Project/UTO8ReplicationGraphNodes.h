@@ -9,6 +9,15 @@
 #include <array>
 #include "UTO8ReplicationGraphNodes.generated.h"
 
+USTRUCT(BlueprintType)
+struct FUTO8InstancedMapDataRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UWorld> InstancedMap;
+};
+
 struct GridInfo
 {
 	GridInfo() : PosX(0.0), PosY(0.0), PosZ(0.0), Column(0), Row(0), IsInUse(false) {}
@@ -47,7 +56,7 @@ public:
 private:
 	float mPosX = 0;
 	float mPosY = 0;
-	float mPosZ = 6000;
+	float mPosZ = 1500;
 	float mGridSize = 6000.0f; // 10,000 target
 	int mGridAmount = 50; // 50*50=2500
 	std::array<GridInfo, 2500> mGridArray;

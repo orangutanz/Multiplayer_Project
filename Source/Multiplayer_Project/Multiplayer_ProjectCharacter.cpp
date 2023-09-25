@@ -27,8 +27,19 @@ AMultiplayer_ProjectCharacter::AMultiplayer_ProjectCharacter()
 	
 	// Networking
 	bReplicates = true;
+	OnLevelLoaded.BindUFunction(this, FName("InstanceTeleport_Async"));
 }
 
+AMultiplayer_ProjectCharacter::~AMultiplayer_ProjectCharacter()
+{
+	OnLevelLoaded.Unbind();
+	if (mInstancedLevel)
+	{
+		mInstancedLevel->SetShouldBeLoaded(false);
+		mInstancedLevel->SetShouldBeVisible(false);
+		mInstancedLevel = nullptr;
+	}
+}
 
 void AMultiplayer_ProjectCharacter::CLIENT_LoadInstancedMap_Implementation(const FString& MapName, FVector Position, const FString& OverrideName)
 {
@@ -65,17 +76,6 @@ void AMultiplayer_ProjectCharacter::CLIENT_LoadInstancedMap_Implementation(const
 				UnloadLevel->SetShouldBeVisible(false);
 			}
 		}
-	}
-}
-
-AMultiplayer_ProjectCharacter::~AMultiplayer_ProjectCharacter()
-{
-	OnLevelLoaded.Unbind();
-	if (mInstancedLevel)
-	{
-		mInstancedLevel->SetShouldBeLoaded(false);
-		mInstancedLevel->SetShouldBeVisible(false);
-		mInstancedLevel = nullptr;
 	}
 }
 
