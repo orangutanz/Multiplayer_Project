@@ -12,6 +12,17 @@
 #include "Equipment.h"
 #include "Projectile.h"
 
+UUTO8ReplicationGraph::UUTO8ReplicationGraph()
+{
+	InstanceSpaceMaker_Island = new InstanceSpaceMaker();
+	InstanceSpaceMaker_Island->Initialize_Space();
+}
+
+UUTO8ReplicationGraph::~UUTO8ReplicationGraph()
+{
+	delete InstanceSpaceMaker_Island;
+}
+
 void UUTO8ReplicationGraph::InitGlobalActorClassSettings()
 {
 	Super::InitGlobalActorClassSettings();
@@ -312,32 +323,55 @@ void UUTO8ReplicationGraph::OnGameplayDebuggerOwnerChange(AGameplayDebuggerCateg
 }
 #endif
 
-void UUTO8ReplicationGraph::OnPlayerAddToInstance(AMultiplayer_ProjectCharacter* Pawn, int32 InstanceNumber)
+void UUTO8ReplicationGraph::OnPlayerAddToInstance(AMultiplayer_ProjectCharacter* Pawn, int32 InstanceNumber, const FString& mapName)
 {
 	if (!Pawn || Pawn->GetWorld() != GetWorld())
 	{
 		return;
 	}
-	auto actorInfo = FNewReplicatedActorInfo(Pawn);
-	auto netConnection = Pawn->GetNetConnection();
 	UUTO8ReplicationGraphNode_Instance* nodeRef = InstanceNodes.FindRef(InstanceNumber);
 	if (!nodeRef)
 	{
 		// instance Node doesn't exist, make a new one
 		nodeRef = CreateNewNode<UUTO8ReplicationGraphNode_Instance>();
-		nodeRef->SetInstanceNumber(InstanceNumber);
-		nodeRef->AddPlayer(actorInfo);
+		if (!mapName.IsEmpty())
+		{
+			GridInfo Grid = InstanceSpaceMaker_Island->GetAvailableGrid();
+			nodeRef->SetNodeName(nodeRef->GetFName().ToString());
+			FTransform transform;
+			transform.SetLocation({ Grid.PosX, Grid.PosY, Grid.PosZ });
+			ULevelStreamingDynamic::FLoadLevelInstanceParams params(GetWorld(), mapName, transform);
+			params.OptionalLevelNameOverride = &nodeRef->GetNodeName();
+			bool Success = false;
+			auto MapPtr = ULevelStreamingDynamic::LoadLevelInstance(params, Success);
+			if (!Success)
+			{
+				InstanceSpaceMaker_Island->ReturnGrid(Grid);
+				return;
+			}
+			nodeRef->SetMapInfo(MapPtr, Grid, mapName);
+			MapPtr->OnLevelLoaded.Add(Pawn->OnLevelLoaded);
+			Pawn->mapPosition = nodeRef->GetMapPosition();
+			Pawn->CLIENT_LoadInstancedMap(nodeRef->GetMapName(), nodeRef->GetMapPosition(), nodeRef->GetNodeName());
+		}
 		InstanceNodes.Add(InstanceNumber, nodeRef);
 	}
 	else
 	{
 		// add to existing Node
-		nodeRef->AddPlayer(actorInfo);
+		if (!mapName.IsEmpty())
+		{
+			Pawn->mapPosition = nodeRef->GetMapPosition();
+			Pawn->CLIENT_LoadInstancedMap(nodeRef->GetMapName(), nodeRef->GetMapPosition(), nodeRef->GetNodeName());
+			Pawn->InstanceTeleport();
+		}
 	}	
-	// remove target from GridNode
+	auto actorInfo = FNewReplicatedActorInfo(Pawn);
+	auto netConnection = Pawn->GetNetConnection();
+	nodeRef->AddPlayer(actorInfo);
 	GridNode->RemoveActor_Dynamic(actorInfo);
-	RemoveConnectionGraphNode(GridNode, netConnection);
 	AddConnectionGraphNode(nodeRef, netConnection);
+	RemoveConnectionGraphNode(GridNode, netConnection);
 }
 
 void UUTO8ReplicationGraph::OnPlayerRemoveFromInstance(AMultiplayer_ProjectCharacter* Pawn, int32 InstanceNumber)
@@ -356,23 +390,30 @@ void UUTO8ReplicationGraph::OnPlayerRemoveFromInstance(AMultiplayer_ProjectChara
 		int32 NodePlayerSize = nodeRef->RemovePlayer(actorInfo);
 		if (NodePlayerSize == 0)
 		{
+			if (!nodeRef->GetMapPtr())
+			{
+				InstanceSpaceMaker_Island->ReturnGrid(nodeRef->GetGridInfo());
+			}
+			nodeRef->TearDownGraphNode();
 			InstanceNodes.Remove(InstanceNumber);
+		}
+		if (!nodeRef->GetMapPtr())
+		{
+			Pawn->CLIENT_RemoveInstancedMap();
+			Pawn->InstanceTeleportBack();
 		}
 		// dummy variables, only for GridNode->AddActor_Dynamic. The actual function only need ActorInfo
 		auto dummyClassInfo = FClassReplicationInfo();
 		auto dummy = FGlobalActorReplicationInfo(dummyClassInfo);
 		// add to GridNode
 		GridNode->AddActor_Dynamic(actorInfo, dummy);
-		RemoveConnectionGraphNode(nodeRef, netConnection);
 		AddConnectionGraphNode(GridNode, netConnection);
-		//Clean up node. need more implementation
-		// delete nodeRef;
+		RemoveConnectionGraphNode(nodeRef, netConnection);
 	}
 }
 
-void UUTO8ReplicationGraph::OnPlayerChangeInstance(AMultiplayer_ProjectCharacter* Pawn, int32 OldNumber, int32 NewNumber)
+void UUTO8ReplicationGraph::OnPlayerChangeInstance(AMultiplayer_ProjectCharacter* Pawn, int32 OldNumber, int32 NewNumber, const FString& mapName)
 {
-
 	if (!Pawn)
 	{
 		return;
@@ -382,30 +423,59 @@ void UUTO8ReplicationGraph::OnPlayerChangeInstance(AMultiplayer_ProjectCharacter
 	{
 		return;
 	}
-	auto actorInfo = FNewReplicatedActorInfo(Pawn);
-	auto netConnection = Pawn->GetNetConnection();
-
 	UUTO8ReplicationGraphNode_Instance* newNodeRef = InstanceNodes.FindRef(NewNumber);
 	if (!newNodeRef)
 	{
 		// instance Node doesn't exist, make a new one
 		newNodeRef = CreateNewNode<UUTO8ReplicationGraphNode_Instance>();
-		newNodeRef->AddPlayer(actorInfo);
+		if (!mapName.IsEmpty())
+		{
+			GridInfo Grid = InstanceSpaceMaker_Island->GetAvailableGrid();
+			newNodeRef->SetNodeName(newNodeRef->GetFName().ToString());
+			FTransform transform;
+			transform.SetLocation({ Grid.PosX, Grid.PosY, Grid.PosZ });
+			ULevelStreamingDynamic::FLoadLevelInstanceParams params(GetWorld(), mapName, transform);
+			params.OptionalLevelNameOverride = &newNodeRef->GetNodeName();
+			bool Success = false;
+			auto MapPtr = ULevelStreamingDynamic::LoadLevelInstance(params, Success);
+			if (!Success)
+			{
+				InstanceSpaceMaker_Island->ReturnGrid(Grid);
+				return;
+			}
+			newNodeRef->SetMapInfo(MapPtr, Grid, mapName);
+			Pawn->mapPosition = newNodeRef->GetMapPosition();
+			Pawn->CLIENT_LoadInstancedMap(newNodeRef->GetMapName(), newNodeRef->GetMapPosition(), newNodeRef->GetNodeName());
+			MapPtr->OnLevelLoaded.Add(Pawn->OnLevelLoaded);
+		}
 		InstanceNodes.Add(NewNumber, newNodeRef);
 	}
 	else
 	{
-		newNodeRef->AddPlayer(actorInfo);
+		if (!mapName.IsEmpty())
+		{
+			Pawn->mapPosition = newNodeRef->GetMapPosition();
+			Pawn->CLIENT_LoadInstancedMap(newNodeRef->GetMapName(), newNodeRef->GetMapPosition(), newNodeRef->GetNodeName());
+			Pawn->InstanceTeleport_Async();
+		}
 	}
 
+	auto actorInfo = FNewReplicatedActorInfo(Pawn);
+	auto netConnection = Pawn->GetNetConnection();
 	// reroute nodes
+	newNodeRef->AddPlayer(actorInfo);
 	int32 NodePlayerSize = oldNodeRef->RemovePlayer(actorInfo);
 	if (NodePlayerSize == 0)
 	{
+		if (!mapName.IsEmpty())
+		{
+			InstanceSpaceMaker_Island->ReturnGrid(oldNodeRef->GetGridInfo());
+		}
+		oldNodeRef->TearDownGraphNode();
 		InstanceNodes.Remove(OldNumber);
 	}
-	RemoveConnectionGraphNode(oldNodeRef, netConnection);
 	AddConnectionGraphNode(newNodeRef, netConnection);
+	RemoveConnectionGraphNode(oldNodeRef, netConnection);
 }
 
 EClassRepPolicy UUTO8ReplicationGraph::GetMappingPolicy(UClass* InClass)

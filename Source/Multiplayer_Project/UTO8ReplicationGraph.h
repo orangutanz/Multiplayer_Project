@@ -27,11 +27,15 @@ class UUTO8ReplicationGraphNode_AlwaysRelavent_ForConnection;
 class UUTO8ReplicationGraphNode_Instance;
 class AGameplayDebuggerCategoryReplicator;
 
+class InstanceSpaceMaker;
 
 UCLASS(Transient, config=Engine)
 class MULTIPLAYER_PROJECT_API UUTO8ReplicationGraph : public UReplicationGraph
 {
 	GENERATED_BODY()
+
+	UUTO8ReplicationGraph();
+	~UUTO8ReplicationGraph();
 public:
 	// ~ begin UReplicationGraph implementation
 	virtual void InitGlobalActorClassSettings() override;
@@ -46,7 +50,6 @@ public:
 	/**  Maps the actors that needs to be always relevant across streaming levels */
 	TMap<FName, FActorRepListRefView> AlwaysRelevantStreamingLevelActors;
 
-	TMap<int, FActorRepListRefView> InstancedActorList;
 
 private:
 	/** Sets class replication rule for a class */
@@ -97,14 +100,9 @@ protected:
 	/*	Bind events
 	*	Call these events on the server to reroute connection into nodes
 	*/
-	void OnPlayerAddToInstance(class AMultiplayer_ProjectCharacter* Pawn,
-		int32 InstanceNumber);
-
-	void OnPlayerRemoveFromInstance(class AMultiplayer_ProjectCharacter* Pawn,
-		int32 InstanceNumber);
-
-	void OnPlayerChangeInstance(class AMultiplayer_ProjectCharacter* Pawn,
-		int32 OldNumber, int32 NewNumber);
+	void OnPlayerAddToInstance(class AMultiplayer_ProjectCharacter* Pawn, int32 InstanceNumber, const FString& mapName);
+	void OnPlayerRemoveFromInstance(class AMultiplayer_ProjectCharacter* Pawn, int32 InstanceNumber);
+	void OnPlayerChangeInstance(class AMultiplayer_ProjectCharacter* Pawn, int32 OldNumber, int32 NewNumber, const FString& mapName);
 
 	FORCEINLINE bool IsSpatialized(EClassRepPolicy Mapping) 
 	{ 
@@ -122,4 +120,5 @@ protected:
 	float SpatialBiasY = -60000.f;			// Min Y for replication
 	bool bDisableSpatialRebuilding = true;
 
+	InstanceSpaceMaker* InstanceSpaceMaker_Island;
 };
